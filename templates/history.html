@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scan History — CHAINLOCK</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🔗</span>
+      <div><span class="logo-text">CHAINLOCK</span><br><span class="logo-sub">SUPPLY CHAIN SECURITY</span></div>
+    </div>
+    <ul class="nav-links">
+      <li><a href="/"><span>🏠</span> Scanner</a></li>
+      <li class="active"><a href="/history"><span>📋</span> Scan History</a></li>
+    </ul>
+  </nav>
+  <main class="main-content">
+    <header class="top-bar">
+      <h1>📋 Scan History</h1>
+      <a href="/" class="btn btn-primary">+ New Scan</a>
+    </header>
+    <div class="recent-card" style="margin:20px 24px">
+      <table class="data-table">
+        <thead><tr><th>File</th><th>Ecosystem</th><th>Deps</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Grade</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+          {% for scan in scans %}
+          <tr>
+            <td class="mono">{{ scan.filename }}</td>
+            <td><span class="eco-badge eco-{{ scan.ecosystem or 'unknown' }}">{{ scan.ecosystem or '—' }}</span></td>
+            <td>{{ scan.total_deps }}</td>
+            <td>{% if scan.critical_count %}<span class="vuln-count critical">{{ scan.critical_count }}</span>{% else %}—{% endif %}</td>
+            <td>{% if scan.high_count %}<span class="vuln-count high">{{ scan.high_count }}</span>{% else %}—{% endif %}</td>
+            <td>{% if scan.medium_count %}<span class="vuln-count medium">{{ scan.medium_count }}</span>{% else %}—{% endif %}</td>
+            <td>{% if scan.low_count %}<span class="vuln-count low">{{ scan.low_count }}</span>{% else %}—{% endif %}</td>
+            <td><span class="grade-badge grade-{{ scan.risk_grade }}">{{ scan.risk_grade }}</span></td>
+            <td><span class="status-badge status-{{ scan.status.lower() }}">{{ scan.status }}</span></td>
+            <td class="time-cell">{{ scan.created_at.strftime('%m/%d/%Y %H:%M') }}</td>
+            <td>{% if scan.status == 'COMPLETED' %}<a href="/scan/{{ scan.id }}" class="btn-sm">View →</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+</body>
+</html>

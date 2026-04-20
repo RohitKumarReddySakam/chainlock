@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHAINLOCK — Supply Chain Security Scanner</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="topnav">
+  <a href="/" class="nav-brand">
+    <div class="brand-logo">🔗</div>
+    <div>
+      <div class="brand-title">CHAINLOCK</div>
+      <span class="brand-sub">Supply Chain Security</span>
+    </div>
+  </a>
+  <div class="nav-links-top">
+    <a href="/" class="nav-link-top active">🔍 Scanner</a>
+    <a href="/history" class="nav-link-top">📋 Scan History</a>
+    <a href="#" class="nav-link-top">📄 SBOM Reports</a>
+    <a href="#" class="nav-link-top">⚙️ Settings</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-stat">
+      <span class="nav-stat-num">{{ stats.total_scans }}</span>
+      <span class="nav-stat-lbl">Total Scans</span>
+    </div>
+    <div class="nav-stat critical">
+      <span class="nav-stat-num">{{ stats.critical_found }}</span>
+      <span class="nav-stat-lbl">Critical Found</span>
+    </div>
+    <button class="btn btn-demo" onclick="runDemo()">⚡ Demo Scan</button>
+  </div>
+</nav>
+
+<div class="app">
+  <main class="main-content">
+
+    <div class="top-bar">
+      <div>
+        <h1>Dependency Security Scanner</h1>
+        <p class="subtitle">Detect vulnerable, malicious &amp; license-non-compliant open source packages</p>
+      </div>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="scanner-zone">
+      <div class="upload-card" id="uploadZone">
+        <div class="upload-icon">📦</div>
+        <h2>Drop your dependency file here</h2>
+        <p>
+          Supports: <strong>requirements.txt</strong> · <strong>package.json</strong> ·
+          <strong>pom.xml</strong> · <strong>go.mod</strong> · <strong>Cargo.toml</strong> · <strong>Gemfile</strong>
+        </p>
+        <input type="file" id="fileInput" accept=".txt,.json,.xml,.toml,.lock,.mod,.gradle" hidden>
+        <div class="upload-actions">
+          <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📂 Choose File</button>
+          <span class="or-divider">— or —</span>
+          <button class="btn btn-secondary" onclick="togglePaste()">📝 Paste Content</button>
+        </div>
+      </div>
+
+      <!-- Paste -->
+      <div id="pasteZone" class="paste-zone" style="display:none">
+        <div class="paste-header">
+          <label>Paste dependency file content</label>
+          <select id="pasteEcosystem" class="eco-select">
+            <option value="requirements.txt">Python (requirements.txt)</option>
+            <option value="package.json">Node.js (package.json)</option>
+            <option value="go.mod">Go (go.mod)</option>
+            <option value="pom.xml">Java Maven (pom.xml)</option>
+          </select>
+        </div>
+        <textarea id="pasteContent" class="paste-input" rows="10" placeholder="Paste your dependency file here..."></textarea>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-primary" onclick="scanPaste()">🔍 Scan</button>
+          <button class="btn btn-ghost" onclick="togglePaste()">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="scanProgress" class="scan-progress" style="display:none">
+        <div class="progress-icon">🔍</div>
+        <h3>Scanning dependencies...</h3>
+        <div class="progress-steps" id="progressSteps">
+          <div class="step active">📦 Extracting dependencies</div>
+          <div class="step">🔍 Checking vulnerabilities (OSV.dev)</div>
+          <div class="step">🎭 Detecting typosquatting</div>
+          <div class="step">⚖️ Checking license compliance</div>
+          <div class="step">📄 Generating SBOM (CycloneDX)</div>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">📊</span>
+        <div><div class="stat-val">{{ stats.total_scans }}</div><div class="stat-lbl">Projects Scanned</div></div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📦</span>
+        <div><div class="stat-val">{{ stats.total_deps_scanned }}</div><div class="stat-lbl">Dependencies Analyzed</div></div>
+      </div>
+      <div class="stat-card red">
+        <span class="stat-icon">🚨</span>
+        <div><div class="stat-val">{{ stats.total_vulnerabilities }}</div><div class="stat-lbl">Vulnerabilities Found</div></div>
+      </div>
+      <div class="stat-card orange">
+        <span class="stat-icon">⛔</span>
+        <div><div class="stat-val">{{ stats.critical_found }}</div><div class="stat-lbl">Critical Severity</div></div>
+      </div>
+    </div>
+
+    <!-- Recent Scans -->
+    {% if recent_scans %}
+    <div class="recent-card">
+      <div class="section-header">
+        <h3>Recent Scans</h3>
+        <a href="/history" class="view-all">View All →</a>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>File</th><th>Ecosystem</th><th>Deps</th><th>Vulnerabilities</th>
+            <th>Risk Grade</th><th>Status</th><th>Time</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in recent_scans %}
+          <tr>
+            <td class="mono">{{ scan.filename }}</td>
+            <td><span class="eco-badge eco-{{ scan.ecosystem or 'unknown' }}">{{ scan.ecosystem or 'detecting...' }}</span></td>
+            <td>{{ scan.total_deps }}</td>
+            <td>
+              {% if scan.critical_count > 0 %}<span class="vuln-count critical">{{ scan.critical_count }} CRIT</span>{% endif %}
+              {% if scan.high_count > 0 %}<span class="vuln-count high">{{ scan.high_count }} HIGH</span>{% endif %}
+              {% if scan.medium_count > 0 %}<span class="vuln-count medium">{{ scan.medium_count }} MED</span>{% endif %}
+              {% if scan.critical_count == 0 and scan.high_count == 0 and scan.medium_count == 0 %}—{% endif %}
+            </td>
+            <td><span class="grade-badge grade-{{ scan.risk_grade }}">{{ scan.risk_grade }}</span></td>
+            <td><span class="status-badge status-{{ scan.status.lower() }}">{{ scan.status }}</span></td>
+            <td class="time-cell">{{ scan.created_at.strftime('%m/%d %H:%M') }}</td>
+            <td>{% if scan.status == 'COMPLETED' %}<a href="/scan/{{ scan.id }}" class="btn-sm">View →</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  startScan(fd, null, null);
+});
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) { const fd = new FormData(); fd.append('file', file); startScan(fd, null, null); }
+});
+
+function togglePaste() {
+  const z = document.getElementById('pasteZone');
+  z.style.display = z.style.display === 'none' ? 'block' : 'none';
+}
+
+function scanPaste() {
+  const content = document.getElementById('pasteContent').value.trim();
+  const filename = document.getElementById('pasteEcosystem').value;
+  if (!content) return alert('Please paste some content first');
+  startScan(null, content, filename);
+}
+
+function runDemo() {
+  fetch('/api/demo', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => pollScan(data.scan_id));
+}
+
+function startScan(formData, content, filename) {
+  document.getElementById('pasteZone').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('scanProgress').style.display = 'block';
+
+  const p = formData
+    ? fetch('/api/scan', { method: 'POST', body: formData })
+    : fetch('/api/scan/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, filename }),
+      });
+
+  p.then(r => r.json()).then(data => {
+    if (data.scan_id) pollScan(data.scan_id);
+  }).catch(err => { alert('Scan failed: ' + err.message); resetUpload(); });
+}
+
+function pollScan(scanId) {
+  let step = 0;
+  const steps = document.querySelectorAll('.progress-steps .step');
+  const bar = document.getElementById('progressBar');
+  const interval = setInterval(() => {
+    step = Math.min(step + 1, steps.length - 1);
+    steps.forEach((s, i) => {
+      s.className = 'step' + (i < step ? ' done' : '') + (i === step ? ' active' : '');
+    });
+    bar.style.width = ((step + 1) / steps.length * 100) + '%';
+    fetch(`/api/scan/${scanId}`).then(r => r.json()).then(data => {
+      if (data.status === 'COMPLETED') {
+        clearInterval(interval);
+        bar.style.width = '100%';
+        setTimeout(() => window.location.href = `/scan/${scanId}`, 600);
+      } else if (data.status && data.status.startsWith('FAILED')) {
+        clearInterval(interval);
+        alert('Scan failed: ' + data.status);
+        resetUpload();
+      }
+    });
+  }, 1500);
+}
+
+function resetUpload() {
+  document.getElementById('scanProgress').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'block';
+}
+</script>
+</body>
+</html>

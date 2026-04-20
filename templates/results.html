@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scan Results — {{ scan.filename }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🔗</span>
+      <div><span class="logo-text">CHAINLOCK</span><br><span class="logo-sub">SUPPLY CHAIN SECURITY</span></div>
+    </div>
+    <ul class="nav-links">
+      <li><a href="/"><span>🏠</span> Scanner</a></li>
+      <li class="active"><a href="#"><span>📊</span> Results</a></li>
+      <li><a href="/history"><span>📋</span> History</a></li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+    <header class="top-bar">
+      <div>
+        <h1>📊 Scan Results: <span class="mono">{{ scan.filename }}</span></h1>
+        <p class="subtitle">{{ scan.ecosystem }} · {{ scan.total_deps }} dependencies · {{ scan.created_at.strftime('%B %d, %Y %H:%M UTC') }}</p>
+      </div>
+      <div class="header-right">
+        <a href="/api/sbom/{{ scan.id }}" class="btn btn-secondary">⬇ Download SBOM</a>
+        <a href="/" class="btn btn-primary">+ New Scan</a>
+      </div>
+    </header>
+
+    <!-- Risk Grade Banner -->
+    <div class="grade-banner grade-bg-{{ scan.risk_grade }}">
+      <div class="grade-circle">{{ scan.risk_grade }}</div>
+      <div class="grade-info">
+        <h2>Risk Grade: {{ scan.risk_grade }}</h2>
+        <p>Risk Score: <strong>{{ "%.1f"|format(scan.risk_score) }}/100</strong>
+          {% if scan.risk_score < 20 %} — Excellent supply chain health
+          {% elif scan.risk_score < 40 %} — Good, minor improvements needed
+          {% elif scan.risk_score < 60 %} — Moderate risk, action recommended
+          {% elif scan.risk_score < 80 %} — High risk, immediate action required
+          {% else %} — Critical risk, halt deployments
+          {% endif %}
+        </p>
+      </div>
+      <div class="grade-counts">
+        <div class="count-pill critical">{{ scan.critical_count }} Critical</div>
+        <div class="count-pill high">{{ scan.high_count }} High</div>
+        <div class="count-pill medium">{{ scan.medium_count }} Medium</div>
+        <div class="count-pill low">{{ scan.low_count }} Low</div>
+        <div class="count-pill clean">{{ scan.clean_count }} Clean</div>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <div class="kpi-box"><div class="kpi-n">{{ scan.total_deps }}</div><div class="kpi-l">Total Dependencies</div></div>
+      <div class="kpi-box red"><div class="kpi-n">{{ scan.critical_count + scan.high_count + scan.medium_count + scan.low_count }}</div><div class="kpi-l">Vulnerabilities Found</div></div>
+      <div class="kpi-box orange"><div class="kpi-n">{{ scan_dict['typosquat_flags']|length }}</div><div class="kpi-l">Typosquat Flags</div></div>
+      <div class="kpi-box yellow"><div class="kpi-n">{{ scan_dict['license_issues']|length }}</div><div class="kpi-l">License Issues</div></div>
+      <div class="kpi-box green"><div class="kpi-n">{{ scan.clean_count }}</div><div class="kpi-l">Clean Dependencies</div></div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row-3">
+      <div class="chart-card">
+        <h3>Vulnerability Severity</h3>
+        <canvas id="sevChart" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Dependency Health</h3>
+        <canvas id="healthChart" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Risk Breakdown</h3>
+        <canvas id="riskChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('vulns', this)">🚨 Vulnerabilities ({{ scan.critical_count + scan.high_count + scan.medium_count + scan.low_count }})</button>
+      <button class="tab" onclick="showTab('typo', this)">🎭 Typosquatting ({{ scan_dict['typosquat_flags']|length }})</button>
+      <button class="tab" onclick="showTab('license', this)">⚖️ License Issues ({{ scan_dict['license_issues']|length }})</button>
+      <button class="tab" onclick="showTab('sbom', this)">📄 SBOM Preview</button>
+    </div>
+
+    <!-- Vulnerabilities Tab -->
+    <div id="tab-vulns" class="tab-content active">
+      {% if scan_dict['vulnerabilities'] %}
+      <table class="data-table">
+        <thead><tr><th>Package</th><th>Version</th><th>CVE</th><th>Severity</th><th>CVSS</th><th>Description</th><th>Fix</th></tr></thead>
+        <tbody>
+          {% for vuln in scan_dict['vulnerabilities'] %}
+          <tr>
+            <td class="pkg-name">{{ vuln.package }}</td>
+            <td class="mono">{{ vuln.version }}</td>
+            <td>
+              {% if vuln.cve_id and vuln.cve_id != 'N/A' %}
+              <a href="https://nvd.nist.gov/vuln/detail/{{ vuln.cve_id }}" target="_blank" class="cve-link">{{ vuln.cve_id }}</a>
+              {% else %}<span class="na">{{ vuln.get('osv_id', 'N/A') }}</span>{% endif %}
+            </td>
+            <td><span class="sev-badge sev-{{ vuln.severity.lower() }}">{{ vuln.severity }}</span></td>
+            <td>
+              {% if vuln.cvss %}
+              <span class="cvss-score cvss-{{ 'critical' if vuln.cvss >= 9 else ('high' if vuln.cvss >= 7 else 'medium') }}">{{ "%.1f"|format(vuln.cvss) }}</span>
+              {% else %}<span class="na">—</span>{% endif %}
+            </td>
+            <td class="desc-cell">{{ vuln.description[:100] }}{% if vuln.description|length > 100 %}...{% endif %}</td>
+            <td>
+              {% if vuln.fixed_version and vuln.fixed_version != 'No fix available' %}
+              <span class="fix-badge">→ {{ vuln.fixed_version }}</span>
+              {% else %}<span class="no-fix">No fix</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">✅ No known vulnerabilities detected in this dependency file.</div>
+      {% endif %}
+    </div>
+
+    <!-- Typosquatting Tab -->
+    <div id="tab-typo" class="tab-content">
+      {% if scan_dict['typosquat_flags'] %}
+      {% for flag in scan_dict['typosquat_flags'] %}
+      <div class="alert-card risk-{{ flag.risk_level.lower() }}">
+        <div class="alert-header">
+          <span class="pkg-name">{{ flag.package }}</span>
+          <span class="sev-badge sev-{{ flag.risk_level.lower() }}">{{ flag.risk_level }}</span>
+        </div>
+        {% for issue in flag.issues %}
+        <div class="alert-issue">
+          <span class="issue-type">{{ issue.type }}</span>
+          <span class="issue-desc">{{ issue.description }}</span>
+          {% if issue.similar_to %}<span class="similar-to">Similar to: <strong>{{ issue.similar_to }}</strong></span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="empty-state">✅ No typosquatting or suspicious packages detected.</div>
+      {% endif %}
+    </div>
+
+    <!-- License Tab -->
+    <div id="tab-license" class="tab-content">
+      {% if scan_dict['license_issues'] %}
+      <table class="data-table">
+        <thead><tr><th>Package</th><th>License</th><th>Type</th><th>Risk</th><th>Issue</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          {% for issue in scan_dict['license_issues'] %}
+          <tr>
+            <td class="pkg-name">{{ issue.package }}</td>
+            <td><span class="license-badge">{{ issue.license }}</span></td>
+            <td>{{ issue.get('type', 'unknown') }}</td>
+            <td><span class="sev-badge sev-{{ issue.risk.lower() }}">{{ issue.risk }}</span></td>
+            <td>{{ issue.issue }}</td>
+            <td class="rec-cell">{{ issue.recommendation }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">✅ No license compliance issues detected.</div>
+      {% endif %}
+    </div>
+
+    <!-- SBOM Tab -->
+    <div id="tab-sbom" class="tab-content">
+      <div class="sbom-header">
+        <p>CycloneDX 1.5 Software Bill of Materials — {{ scan.total_deps }} components</p>
+        <a href="/api/sbom/{{ scan.id }}" class="btn btn-secondary">⬇ Download Full SBOM (JSON)</a>
+      </div>
+      <pre class="sbom-preview" id="sbomPreview">Loading SBOM preview...</pre>
+    </div>
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+const scanData = {{ scan_dict | tojson }};
+
+// Charts
+const chartOpts = { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } };
+
+new Chart(document.getElementById('sevChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Critical', 'High', 'Medium', 'Low'],
+    datasets: [{ data: [scanData.critical_count, scanData.high_count, scanData.medium_count, scanData.low_count],
+      backgroundColor: ['#ef4444','#f97316','#eab308','#22c55e'] }]
+  },
+  options: chartOpts
+});
+
+new Chart(document.getElementById('healthChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Vulnerable', 'Clean'],
+    datasets: [{ data: [
+      scanData.critical_count + scanData.high_count + scanData.medium_count + scanData.low_count,
+      scanData.clean_count
+    ], backgroundColor: ['#ef4444','#22c55e'] }]
+  },
+  options: chartOpts
+});
+
+new Chart(document.getElementById('riskChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Vulnerabilities', 'Typosquats', 'License'],
+    datasets: [{
+      data: [
+        scanData.critical_count + scanData.high_count,
+        scanData.typosquat_flags.length,
+        scanData.license_issues.length
+      ],
+      backgroundColor: ['#ef4444','#f97316','#eab308'],
+      borderRadius: 4,
+    }]
+  },
+  options: { ...chartOpts, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' } }, y: { ticks: { color: '#64748b' } } } }
+});
+
+// Tabs
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+
+  if (name === 'sbom') {
+    const sbom = scanData.sbom;
+    document.getElementById('sbomPreview').textContent = JSON.stringify(sbom, null, 2).substring(0, 3000) + '\n\n... (download full SBOM for complete content)';
+  }
+}
+</script>
+</body>
+</html>

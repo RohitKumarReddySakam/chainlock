@@ -8,7 +8,7 @@ requests==2.25.0
 PyYAML==5.3.1
 
 # ⚠️ HIGH - CVE-2023-49083 (NULL pointer dereference)
-cryptography==3.4.6
+cryptography==46.0.7
 
 # ⚠️ HIGH - CVE-2023-44271 (DoS via ImageFont)
 Pillow==9.0.0

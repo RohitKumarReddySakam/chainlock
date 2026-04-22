@@ -2,9 +2,9 @@ name: CHAINLOCK CI
 
 on:
   push:
-    branches: [master, main, develop]
+    branches: [main]
   pull_request:
-    branches: [master, main]
+    branches: [main]
 
 jobs:
   test:
@@ -28,23 +28,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install scanner
+      - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Self-scan this project's dependencies
-        run: python -c "
-from core.dependency_extractor import DependencyExtractor
-from core.vulnerability_checker import VulnerabilityChecker
-ext = DependencyExtractor()
-chk = VulnerabilityChecker()
-with open('requirements.txt') as f:
-    content = f.read()
-deps, eco = ext.extract('requirements.txt', content)
-vulns = chk.check_all(deps)
-critical = [v for v in vulns if v.get('severity') == 'CRITICAL']
-print(f'Scanned {len(deps)} deps, found {len(vulns)} vulns, {len(critical)} critical')
-if critical:
-    for v in critical:
-        print(f'CRITICAL: {v[\"package\"]} - {v[\"cve_id\"]}')
-    exit(1)
-print('No critical vulnerabilities in project dependencies')
-"
+      - name: Self-scan project dependencies
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          sys.path.insert(0, '.')
+          from core.dependency_extractor import DependencyExtractor
+          from core.vulnerability_checker import VulnerabilityChecker
+
+          ext = DependencyExtractor()
+          chk = VulnerabilityChecker()
+          with open('requirements.txt') as f:
+              content = f.read()
+          deps, eco = ext.extract('requirements.txt', content)
+          vulns = chk.check_all(deps)
+          critical = [v for v in vulns if v.get('severity') == 'CRITICAL']
+          print(f'Scanned {len(deps)} deps, found {len(vulns)} vulns, {len(critical)} critical')
+          if critical:
+              for v in critical:
+                  print(f'CRITICAL: {v["package"]} - {v["cve_id"]}')
+              sys.exit(1)
+          print('No critical vulnerabilities in project dependencies')
+          PYEOF

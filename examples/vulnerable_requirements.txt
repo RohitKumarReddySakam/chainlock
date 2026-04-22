@@ -2,7 +2,7 @@
 # This demonstrates real-world supply chain vulnerabilities
 
 # ⚠️ VULNERABLE - CVE-2023-32681 (SSRF via redirects)
-requests==2.25.0
+requests==2.33.0
 
 # 🔴 CRITICAL - CVE-2022-1471 (arbitrary code execution)
 PyYAML==5.3.1

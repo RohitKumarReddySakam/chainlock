@@ -5,7 +5,7 @@
 requests==2.25.0
 
 # 🔴 CRITICAL - CVE-2022-1471 (arbitrary code execution)
-PyYAML==5.3.1
+PyYAML==6.0.3
 
 # ⚠️ HIGH - CVE-2023-49083 (NULL pointer dereference)
 cryptography==3.4.6

@@ -29,7 +29,7 @@ paramiko==2.8.0
 urllib3==1.26.4
 
 # ⚠️ HIGH - CVE-2022-40897 (ReDoS)
-setuptools==57.0.0
+setuptools==82.0.1
 
 # ⚠️ MEDIUM - SQL injection via crafted column names
 sqlalchemy==1.4.0

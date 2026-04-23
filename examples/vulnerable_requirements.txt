@@ -17,7 +17,7 @@ Pillow==9.0.0
 Django==3.2.0
 
 # ⚠️ HIGH - CVE-2023-30861 (session cookie disclosure)
-flask==2.0.0
+flask==3.1.3
 
 # ⚠️ MEDIUM - CVE-2021-41495 (null pointer dereference)
 numpy==1.21.0

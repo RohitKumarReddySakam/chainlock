@@ -20,7 +20,7 @@ Django==3.2.0
 flask==2.0.0
 
 # ⚠️ MEDIUM - CVE-2021-41495 (null pointer dereference)
-numpy==1.21.0
+numpy==2.4.4
 
 # ⚠️ MEDIUM - CVE-2023-48795 (Terrapin attack)
 paramiko==2.8.0

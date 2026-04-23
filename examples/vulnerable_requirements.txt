@@ -32,7 +32,7 @@ urllib3==1.26.4
 setuptools==57.0.0
 
 # ⚠️ MEDIUM - SQL injection via crafted column names
-sqlalchemy==1.4.0
+sqlalchemy==2.0.49
 
 # ✅ CLEAN - No known vulnerabilities
 certifi==2023.7.22

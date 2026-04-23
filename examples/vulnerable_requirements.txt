@@ -23,7 +23,7 @@ flask==2.0.0
 numpy==1.21.0
 
 # ⚠️ MEDIUM - CVE-2023-48795 (Terrapin attack)
-paramiko==2.8.0
+paramiko==4.0.0
 
 # ⚠️ MEDIUM - CVE-2023-45803 (HTTP redirect body disclosure)
 urllib3==1.26.4

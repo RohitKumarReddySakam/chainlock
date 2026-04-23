@@ -8,7 +8,7 @@ Detects vulnerable, malicious, and license-non-compliant dependencies
 across Python, Node.js, Java, and Go ecosystems.
 """
 
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os, json, uuid, threading
@@ -231,10 +231,12 @@ def download_sbom(scan_id):
     scan = ScanResult.query.get_or_404(scan_id)
     sbom_data = json.loads(scan.sbom or "{}")
     sbom_str  = json.dumps(sbom_data, indent=2)
-    path = f"/tmp/sbom_{scan_id}.json"
-    with open(path, "w") as f:
-        f.write(sbom_str)
-    return send_file(path, as_attachment=True, download_name=f"sbom_{scan.filename}.json")
+    safe_name = secure_filename(f"sbom_{scan.filename}.json")
+    return Response(
+        sbom_str,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename={safe_name}"}
+    )
 
 
 @app.route("/api/demo", methods=["POST"])

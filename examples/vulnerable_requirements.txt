@@ -37,4 +37,4 @@ sqlalchemy==1.4.0
 # ✅ CLEAN - No known vulnerabilities
 certifi==2023.7.22
 click==8.1.7
-werkzeug==3.0.1
+werkzeug==3.1.6

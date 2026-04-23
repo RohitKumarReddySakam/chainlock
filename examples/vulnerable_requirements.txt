@@ -14,7 +14,7 @@ cryptography==3.4.6
 Pillow==9.0.0
 
 # ⚠️ HIGH - CVE-2023-43665 (DoS via Truncator)
-Django==3.2.0
+Django==4.2.30
 
 # ⚠️ HIGH - CVE-2023-30861 (session cookie disclosure)
 flask==2.0.0
